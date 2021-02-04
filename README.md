@@ -1,6 +1,10 @@
 # CohortTable
 ##  Projecting per-Person Revenue Using Productivity Ramp Up Periods
 
+### Quick Instructions
+1. Download Cohort.py to local working directory
+2. Create new instance by calling CohortTable() class using the arguments listed below.
+
 One of the most common modeling tasks is to create future revenue projections based on a hiring plan, where hires are not immediately productive and only reach their full potential after a period of time.
 Import and call the CohortTable class to automatically generate Full Time Equivalent (FTE), employee count, and revenue tables based on 6 variables.
 The class and associated output tables will:
