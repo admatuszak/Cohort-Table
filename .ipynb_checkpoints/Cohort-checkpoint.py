@@ -21,13 +21,16 @@ class CohortTable:
     """
     
     def __init__ (self, forecast_period, n_years, hires_per_year, revenue_goal, annual_attrition=.15, \
-                  first_year_full_hire=False, attrition_y0=False):
+                  ramp_type='linear', beta=.3, shift=3, first_year_full_hire=False, attrition_y0=False):
         self.forecast_period = forecast_period
         self.n_years = n_years
         self.hires_per_year = hires_per_year
         self.revenue_goal = revenue_goal
         self.annual_attrition = annual_attrition
         self.attrition_y0 = attrition_y0
+        self.ramp_type = ramp_type
+        self.beta = beta # default for sigmoid function
+        self.shift = shift # default for sigmoid function
         
         self.mask_zeros = np.zeros(shape=(self.forecast_period, self.forecast_period))
         self.mask_ones = np.ones(shape=(self.forecast_period, self.forecast_period))
@@ -44,17 +47,44 @@ class CohortTable:
         self.create_revenue_df()
         
     def size_list(self, l, length, pad=0):
-        if len(l) >= length:
-            del l[length:]
+        new_list = l
+        if len(new_list) >= length:
+            del new_list[length:]
         else:
-            l.extend([pad] * (length - len(l)))
+            new_list.extend([pad] * (length - len(new_list)))
         
-        return l
+        return new_list
+    
+    def sigmoid(self, x, beta, shift):
+        # beta should be between .1 and 1 for these purposes
+        # shift should be between -10 and and 10 for these purposes
+        if (.1 > beta) | (beta > 1):
+            beta = self.beta # reset to default
+        if (-10 > shift) | (shift > 10):
+            shift = self.shift
+        return 1 / (1 + np.exp(beta*(-x - shift)))
+    
+    def create_ramp_sigmoid(self):
+        ramp_sigmoid = [self.sigmoid(n, self.beta, self.shift) for n in np.linspace(-10,10, self.n_years)]
+        ramp_sigmoid = self.size_list(ramp_sigmoid, self.forecast_period, pad=1)
+        
+        #move the two lines below to create_productivity_df
+        productivity_array = [np.roll(ramp_sigmoid, n) for n in range(self.forecast_period)]
+        productivity_array = np.triu(productivity_array)
+        
+        return productivity_array
+        
+    def create_ramp_lin(self):
+        productivity_array = [[min(max(n, 0)/self.n_years, 1) for n in range(1-i, self.forecast_period+1-i)] for i in range(self.forecast_period)]
+        return productivity_array
     
     def create_productivity_df(self):
-        # Create productivity matrix by cohort and year using nested list comprehension
-        productivity_list = [[min(max(n, 0)/self.n_years, 1) for n in range(1-i, self.forecast_period+1-i)] for i in range(self.forecast_period)]
-        self.productivity_df = pd.DataFrame(productivity_list)
+        if self.ramp_type == 'linear':
+            productivity_array = self.create_ramp_lin()
+        if self.ramp_type == 'sigmoid':
+            productivity_array = self.create_ramp_sigmoid()
+        
+        self.productivity_df = pd.DataFrame(productivity_array)
         
     def create_employee_df(self):
         # Create upper triangle of employees
@@ -64,25 +94,22 @@ class CohortTable:
         self.employee_count_df = pd.DataFrame(self.employee_count)
     
     def create_attrition_tables(self):
-        # Start with ndarray of all zeros of shape (forecast_period x forecast_period)
-        # Add the annual rate of attrition to all elements of ndarray
-        self.attrition_mask = np.add(self.mask_zeros, self.annual_attrition)
-        # Take upper triangle of attrition rate elements and add ndarray of ones
+        # Start with ndarray of all ones of shape (forecast_period x forecast_period)
+        # Subtract the annual rate of attrition to all elements of ndarray
+        self.attrition_mask = np.subtract(self.mask_ones, self.annual_attrition)
+        
         # If attrition_y0 == True, allow attrition in year 0, otherwise set k=1 in np.triu() so that attrition starts in second year
         if self.attrition_y0 == True:
             k = 0
         else:
             k = 1
-        self.attrition_mask = np.add(self.mask_ones, np.triu(self.attrition_mask, k))
+        
+        # Set lower tri to 1's so we can cumprod attrition rates. If Y0 attrit == True, go one below diag; otherwise, set diag
+        self.attrition_mask[np.tril_indices(self.attrition_mask.shape[0], -1+k)] = 1
         self.attrition_mask = np.cumprod(self.attrition_mask, axis=1)
-        # We only want to go to maximum value of 2 since we want the compounded percentage between 1 and 2
-        self.attrition_mask = np.minimum(self.attrition_mask, 2)
-        # Now we have ndarray of upper triangle of compounded attrition rates
-        self.attrition_mask = np.subtract(self.attrition_mask, 1)
-        self.attrition_df = self.employee_count_df.multiply(self.attrition_mask)
         
     def create_retained_employee_count_df(self):
-        self.retained_employee_count_df = self.employee_count_df.subtract(self.attrition_df).apply(np.ceil) # Use ceiling to keep whole employees
+        self.retained_employee_count_df = self.employee_count_df.multiply(self.attrition_mask) 
         
     def apply_midpoint_hiring(self, first_year_full_hire):
         midpoint_mask = np.ones(shape = (self.forecast_period, self.forecast_period))
@@ -113,19 +140,15 @@ class CohortTable:
         self.print_table(self.employee_count_df, 'Employee Count (Before Attrition) by Year', precision=0, create_sum=True, sum_title='Employees')
         
         display(Markdown('## Attrition Mask Table'))
-        display(Markdown('This table represents the *percentage* of the cohort **population** that has left. It is cummulative; the number \
-        starts at zero at increases to 100%, at which point the entire cohort has left the company.\n'))
+        display(Markdown('This table represents the *percentage* of the cohort **population** that has left. The number for each cohort starts\
+        at 1 (or 100%) and decreases over time. If the argument *attrition_y0* is **TRUE**, the first year of the cohort\
+        is reduced by the annual attrition rate. Otherwise, attrition starts in the second year of each cohort.\n'))
         self.print_table(pd.DataFrame(self.attrition_mask), 'Attrition Mask - 0% to 100% of Employee Count')
         
-        display(Markdown('## Attrition Table'))
-        display(Markdown('This table contains the number of employees that have left **up to that year**. \
-        This is a cummulative number and will increase from zero to the number of employees that were hired as part of that cohort. \
-        Notice that this table contains decimals; the actual calculation ignores the decimals and only accounts for \
-        a termination after the number reaches an integer, i.e., people either leave or they do not, fractions of people do not exist.'))
-        self.print_table(self.attrition_df, 'Attrition Table - Number of Employees Leaving Before Rounding\n')
-        
         display(Markdown('## Retained Employees after Attrition'))
-        display(Markdown('This table contains the number of employees that remain with the company after accounting for attrition.\n'))
+        display(Markdown('This table contains the number of employees that remain with the company after accounting for attrition. This \
+        table contains only whole employees, not fractions, to illustrate when each person is expected to leave as opposed \
+        to the Full Time Equivalent (FTE) table below.\n'))
         self.print_table(self.retained_employee_count_df, 'Employees, After Attrition, by Year', precision=0, create_sum=True, sum_title='Employees')
         
         display(Markdown('## Full Time Equivalent Table'))
