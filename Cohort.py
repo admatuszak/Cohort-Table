@@ -1,20 +1,10 @@
 import pandas as pd
 import numpy as np
-from IPython.display import display, Markdown
 
 class CohortTable:
     """
-    Creates new cohort table class instance. 
-
-    Keyword arguments:
-    forecast_period (required) Int -- The length of the forecast period
-    n_years (required) Int -- The length over which to 'ramp up' productivity from 0 to 100%
-    hires_per_year (required) List of Integers -- How many employees will be hired each year, will be reshaped to fit forecast_period if necessary
-    revenue_goal (required) Int -- The revenue per person when productivity is 100%
-    annual_attrition (optional) Decimal -- Average percentage of attrition, expressed as decimal between 0 and 1. Default = .15.
-    first_year_full_hire (optional) True / False -- Whether to use mid-point hiring for first year calculation. Default = False
-    attrition_y0 (optional) True / False -- Should attrition occur in first year of hiring. Default = False
-    
+    Customizable cohort table class projects revenue by year and cohort using productivity ramp up periods, mid-year hiring, and attrition. Productivity ramp 
+    can be linear or sigmoid (s-curve) and can be of any length. 
     """
     
     def __init__ (self, forecast_period, n_years, hires_per_year, revenue_goal, annual_attrition=.15, \
@@ -124,50 +114,3 @@ class CohortTable:
     def create_revenue_df(self):
         # Calculate revenue by cohort and year using retained FTE
         self.revenue_df = self.retained_fte_factored_df.multiply(self.revenue_goal)
-    
-    def print_all_tables(self):
-        display(Markdown('## Productivity Table'))
-        display(Markdown('The following table contains the percentage of productivity for each cohort by year.'))
-        display(Markdown('The maximum percentage for each cell is 100% or 1. Any value less than 1 is used to discount the \
-        productivity of that cohort class for that particular year.\n'))
-        self.print_table(self.productivity_df, 'Productivity Table')
-        
-        display(Markdown('## Employee Count before Attrition'))
-        display(Markdown('This table for each year, by each cohort, if no attrition were to occur.\n'))
-        self.print_table(self.employee_count_df, 'Employee Count (Before Attrition) by Year', precision=0, create_sum=True, sum_title='Employees')
-        
-        display(Markdown('## Attrition Mask Table'))
-        display(Markdown('This table represents the *percentage* of the cohort **population** that has left. The number for each cohort starts\
-        at 1 (or 100%) and decreases over time. If the argument *attrition_y0* is **TRUE**, the first year of the cohort\
-        is reduced by the annual attrition rate. Otherwise, attrition starts in the second year of each cohort.\n'))
-        self.print_table(pd.DataFrame(self.attrition_mask), 'Attrition Mask - 0% to 100% of Employee Count')
-        
-        display(Markdown('## Retained Employees after Attrition'))
-        display(Markdown('This table contains the number of employees that remain with the company after accounting for attrition. This \
-        table contains only whole employees, not fractions, to illustrate when each person is expected to leave as opposed \
-        to the Full Time Equivalent (FTE) table below.\n'))
-        self.print_table(self.retained_employee_count_df, 'Employees, After Attrition, by Year', precision=0, create_sum=True, sum_title='Employees')
-        
-        display(Markdown('## Full Time Equivalent Table'))
-        display(Markdown('This table takes the retained employees after attrition from the table above and calculates the \
-        number of FTE after applying mid-year hiring. We assume that hiring takes place throughout the year rather than have \
-        all employees hired on the first of the year. This results in a lower FTE figure for the first year of the cohort.\n'))
-        self.print_table(self.retained_fte_df, 'FTE Table', create_sum=True, sum_title='FTE')
-        
-        display(Markdown('## Full Time Equivalent after Factoring Productivity Ramp Up'))
-        display(Markdown('This table takes the FTE figures from the table above and applies the ramp up in productivity.\n'))
-        self.print_table(self.retained_fte_factored_df, 'FTE After Applying Productivity Ramp', create_sum=True, sum_title='FTE')
-        
-        display(Markdown('## Revenue Table'))
-        display(Markdown('This table takes the final FTE figures, after factoring for productivity ramp up periods, and calculates \
-        the total revenue per year and per cohort.\n'))
-        self.print_table(self.revenue_df, 'Total Revenue by Year', precision=0, create_sum=True, sum_title='Revenue')
-            
-    def print_table(self, df, table_title, precision=2, create_sum=False, sum_title='Sum'):
-        df.index.name='Cohort'
-        if create_sum:
-            sum_title = 'Sum of '+sum_title
-            df.loc[sum_title] = df.sum()
-        format_string = '{:,.' + str(precision) + 'f}'
-        df_styled = df.style.format(format_string).set_caption(table_title)
-        display(df_styled)

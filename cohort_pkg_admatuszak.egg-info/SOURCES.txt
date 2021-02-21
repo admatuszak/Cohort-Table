@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+setup.cfg
+cohort_pkg/__init__.py
+cohort_pkg_admatuszak.egg-info/PKG-INFO
+cohort_pkg_admatuszak.egg-info/SOURCES.txt
+cohort_pkg_admatuszak.egg-info/dependency_links.txt
+cohort_pkg_admatuszak.egg-info/top_level.txt
