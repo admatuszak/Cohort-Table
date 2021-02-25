@@ -1,13 +1,8 @@
 import streamlit as st
-import sys
-from matplotlib.ticker import FuncFormatter
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import altair as alt
-
-sys.path.append(r'c:\Users\amatuszak\Documents\GitHub\Cohort-Table')
-from Cohort import CohortTable
+from cohort import CohortTable
 
 # Common functions
 color = '#800000ff'

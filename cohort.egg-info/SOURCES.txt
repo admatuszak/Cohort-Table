@@ -6,4 +6,5 @@ cohort/cohort.py
 cohort.egg-info/PKG-INFO
 cohort.egg-info/SOURCES.txt
 cohort.egg-info/dependency_links.txt
+cohort.egg-info/requires.txt
 cohort.egg-info/top_level.txt
