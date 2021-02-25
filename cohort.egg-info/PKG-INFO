@@ -1,7 +1,7 @@
-Metadata-Version: 1.2
-Name: cohort-pkg-admatuszak
-Version: 0.1
-Summary: Uses cohort tables to forecast revenue allowing for a productivity ramp that varies over time as well as attrition.
+Metadata-Version: 2.1
+Name: cohort
+Version: 0.1.8
+Summary: Creates cohort tables to forecast revenue allowing for a productivity ramp that varies over time as well as attrition.
 Home-page: https://github.com/admatuszak/Cohort-Table
 Author: Andrew Matuszak
 Author-email: admatuszak@gmail.com
@@ -35,3 +35,4 @@ Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
+Description-Content-Type: text/markdown
