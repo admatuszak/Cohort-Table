@@ -1,2 +1,2 @@
-[server]
-port = 80
+[browser]
+serverAddress = "https://share.streamlit.io/admatuszak/cohort-table/main/Cohort-st.py"
